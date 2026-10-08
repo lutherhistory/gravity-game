@@ -1,67 +1,51 @@
 use raylib::prelude::*;
 
-
 const WIDTH:    f32 = 800.0;
 const HEIGHT:   f32 = 500.0;
+
+const BLOCKS_COUNT: usize = 100;
+
+const BLUE_BOX: Color  = Color::new(0x42, 0x92, 0xc6, 0xff);
+const RED_BOX : Color  = Color::new(0xc6, 0x42, 0x42, 0xff);
+const BG: Color = Color::new(0xa6, 0xa2, 0xa2, 0xff);
 
 
 struct Block {
     rec: Rectangle,
     color: Color,
 
-    // Physics
-    velocity: Vector2,
+    velocity: Vector2
 }
 
 impl Block {
     pub fn new(c: Color) -> Self {
-        let ran_value_x = unsafe { raylib::ffi::GetRandomValue(0, (WIDTH - 50.0)  as i32) as f32 };
-        let ran_value_y = unsafe { raylib::ffi::GetRandomValue(0, (HEIGHT - 50.0) as i32) as f32 };
+        //let rx = unsafe { raylib::ffi::GetRandomValue(0, (WIDTH - 50.0) as i32) } as f32;
+        let rx = 0.0;
+        let ry = 0.0;
 
 
         Self {
-            rec: Rectangle::new(
-                ran_value_x, 
-                ran_value_y, 
-                50.0, 
-                50.0
-            ),
+            rec: Rectangle::new(rx, ry, 50.0, 50.0),
             color: c,
-            velocity: Vector2::new(100.0, 100.0)
+            velocity: Vector2::new(0.0, 0.0)
         }
     }
 
-    pub fn fall(&mut self, dt: f32) -> bool {
-//        if self.rec.y < HEIGHT - self.rec.height {
-//            self.velocity.y += 10.0;
-//        }
-//
-//        else {
-//            self.velocity.y = 0.0;
-//        }
-//
-//        self.rec.y += self.velocity.y * dt;
+    pub fn fall(&mut self, dt: f32) {
+        self.velocity.y = if self.rec.y < HEIGHT - self.rec.height {
+            self.velocity.y + 100.0
+        } 
 
-        let mut status: bool = false;
-
-        if self.rec.x < 0.0 || self.rec.x > WIDTH - self.rec.width {
-            self.velocity.x *= - 1.0;
-            status = true;
+        else {
+            self.rec.y = HEIGHT - self.rec.height;
+            0.0
         };
 
-        if self.rec.y < 0.0 || self.rec.y > HEIGHT - self.rec.height {
-            self.velocity.y *= - 1.0;
-            status = true;
-        }
-
-
-        self.rec.x += self.velocity.x * dt;
+        
         self.rec.y += self.velocity.y * dt;
-
-        status
+        self.rec.x += self.velocity.x * dt;
     }
 }
-
 
 fn main() {
     let (mut rl, thread) = raylib::init()
@@ -71,26 +55,64 @@ fn main() {
     rl.set_target_fps(60);
 
 
-    let mut blocks: Vec<Block> = vec![];
+    let mut blocks: Vec<Block> = Vec::new();
+    let mut in_used: usize = 0;
 
-    blocks.push(Block::new(Color::BLUE));
-    blocks.push(Block::new(Color::RED));
-    blocks.push(Block::new(Color::YELLOW));
-    blocks.push(Block::new(Color::GREEN));
-    blocks.push(Block::new(Color::PINK));
 
+    for _i in 0..BLOCKS_COUNT {
+        blocks.push(Block::new(RED_BOX));
+    }
 
     while !rl.window_should_close() {
         let dt = rl.get_frame_time();
-        let mut d = rl.begin_drawing(&thread);
+        let mouse_pos = rl.get_mouse_position();
 
-        d.clear_background(Color::RAYWHITE);
-        for block in &mut blocks {
-            if block.fall(dt) {
-                //blocks.push(Block::new(Color::GREEN));
+        // --- Update Logics ---
+        {
+            in_used += if in_used < BLOCKS_COUNT && rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
+                blocks[in_used].rec.x = mouse_pos.x - blocks[in_used].rec.width / 2.0;
+                blocks[in_used].rec.y = mouse_pos.y;
+                1
             }
 
-            d.draw_rectangle_rec(block.rec, block.color);
+            else {
+                0
+            }
+        }
+
+        // --- Drawing ---
+        let mut d = rl.begin_drawing(&thread);
+        d.clear_background(BG);
+        {
+            d.draw_text(&((blocks.len() - in_used).to_string() + "/" + &BLOCKS_COUNT.to_string()), 0, 0, 30, Color::BLACK);
+
+            for i in 0..in_used {
+//                for j in 0..in_used {
+//                    if i != j && blocks[i].rec.check_collision_recs(blocks[j].rec) {
+//                        let overlap = blocks[i].rec.get_collision_rec(blocks[j].rec).unwrap();
+//
+//                        if overlap.width > overlap.height {
+//                            blocks[j].rec.y += overlap.width;
+//                        }
+//                    }
+//                }
+
+                blocks[i].fall(dt);
+                d.draw_rectangle_rec(blocks[i].rec, blocks[i].color);
+            }
+
+            let line_start  = Vector2::new(mouse_pos.x, mouse_pos.y);
+            let line_end    = Vector2::new(mouse_pos.x, HEIGHT);
+
+
+            d.draw_line_dashed(
+                line_start,
+                line_end,
+                20,
+                10,
+                Color::GOLD
+            );
+
         }
     }
 }
