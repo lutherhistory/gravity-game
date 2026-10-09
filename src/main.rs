@@ -13,6 +13,8 @@ const BG: Color = Color::new(0xa6, 0xa2, 0xa2, 0xff);
 struct Block {
     rec: Rectangle,
     color: Color,
+    fly: bool,
+    collided: bool,
 
     velocity: Vector2
 }
@@ -27,21 +29,40 @@ impl Block {
         Self {
             rec: Rectangle::new(rx, ry, 50.0, 50.0),
             color: c,
-            velocity: Vector2::new(0.0, 0.0)
+            velocity: Vector2::new(0.0, 0.0),
+            fly: false,
+            collided: false
         }
     }
 
     pub fn fall(&mut self, dt: f32) {
-        self.velocity.y = if self.rec.y < HEIGHT - self.rec.height {
-            self.velocity.y + 100.0
-        } 
-
-        else {
-            self.rec.y = HEIGHT - self.rec.height;
-            0.0
-        };
+        if !self.collided {
+            if !self.fly {
+                self.velocity.y = if self.rec.y < HEIGHT - self.rec.height {
+                    self.velocity.y + 100.0
+                } 
+    
+                else {
+                    self.rec.y = HEIGHT - self.rec.height;
+                    0.0
+                };
+    
+            }
+    
+            else {
+                self.velocity.y = if self.rec.y > 0.0 {
+                    self.velocity.y - 5.0
+                } 
+    
+                else {
+                    self.rec.y = 0.0;
+                    0.0
+                };        
+            }
+        }
 
         
+
         self.rec.y += self.velocity.y * dt;
         self.rec.x += self.velocity.x * dt;
     }
@@ -68,15 +89,49 @@ fn main() {
         let mouse_pos = rl.get_mouse_position();
 
         // --- Update Logics ---
-        {
-            in_used += if in_used < BLOCKS_COUNT && rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
-                blocks[in_used].rec.x = mouse_pos.x - blocks[in_used].rec.width / 2.0;
-                blocks[in_used].rec.y = mouse_pos.y;
-                1
-            }
+        /* Insert Blocks */ {
+            if in_used < BLOCKS_COUNT {
+                // --- Red Blocks ---
+                in_used += if rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_RIGHT) {
+                    blocks[in_used].rec.x = mouse_pos.x - blocks[in_used].rec.width / 2.0;
+                    blocks[in_used].rec.y = mouse_pos.y - blocks[in_used].rec.width / 2.0;
+                    1
+                }
 
-            else {
-                0
+                else {
+                    0
+                };
+
+                // --- Blue Blocks ---
+                if rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
+                    blocks[in_used].color = BLUE_BOX;
+                    blocks[in_used].fly   = true;
+
+                    blocks[in_used].rec.x = mouse_pos.x - blocks[in_used].rec.width / 2.0;
+                    blocks[in_used].rec.y = mouse_pos.y - blocks[in_used].rec.width / 2.0;
+
+                    in_used += 1;
+                }
+            }
+        }
+
+        /* Collisions Blocks */ 
+        {
+            for i in 0..in_used {
+                for j in 0..in_used {
+                    if blocks[i].rec.check_collision_recs(blocks[j].rec) {
+                        if i != j {
+                            let overlap = blocks[i].rec.get_collision_rec(blocks[j].rec).unwrap();
+
+                            if overlap.width > overlap.height {
+                                blocks[i].rec.y -= overlap.height;
+                            }
+
+
+                            blocks[i].collided = true;
+                        }
+                    }
+                }
             }
         }
 
@@ -84,35 +139,14 @@ fn main() {
         let mut d = rl.begin_drawing(&thread);
         d.clear_background(BG);
         {
-            d.draw_text(&((blocks.len() - in_used).to_string() + "/" + &BLOCKS_COUNT.to_string()), 0, 0, 30, Color::BLACK);
-
             for i in 0..in_used {
-//                for j in 0..in_used {
-//                    if i != j && blocks[i].rec.check_collision_recs(blocks[j].rec) {
-//                        let overlap = blocks[i].rec.get_collision_rec(blocks[j].rec).unwrap();
-//
-//                        if overlap.width > overlap.height {
-//                            blocks[j].rec.y += overlap.width;
-//                        }
-//                    }
-//                }
-
                 blocks[i].fall(dt);
+
                 d.draw_rectangle_rec(blocks[i].rec, blocks[i].color);
             }
 
-            let line_start  = Vector2::new(mouse_pos.x, mouse_pos.y);
-            let line_end    = Vector2::new(mouse_pos.x, HEIGHT);
-
-
-            d.draw_line_dashed(
-                line_start,
-                line_end,
-                20,
-                10,
-                Color::GOLD
-            );
-
         }
+
+        d.draw_text(&((blocks.len() - in_used).to_string() + "/" + &BLOCKS_COUNT.to_string()), 0, 0, 30, Color::BLACK);
     }
 }
