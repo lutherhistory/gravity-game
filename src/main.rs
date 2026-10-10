@@ -1,152 +1,49 @@
 use raylib::prelude::*;
 
-const WIDTH:    f32 = 800.0;
-const HEIGHT:   f32 = 500.0;
+mod blocks;
+use blocks::Brick;
 
-const BLOCKS_COUNT: usize = 100;
-
-const BLUE_BOX: Color  = Color::new(0x42, 0x92, 0xc6, 0xff);
-const RED_BOX : Color  = Color::new(0xc6, 0x42, 0x42, 0xff);
-const BG: Color = Color::new(0xa6, 0xa2, 0xa2, 0xff);
-
-
-struct Block {
-    rec: Rectangle,
-    color: Color,
-    fly: bool,
-    collided: bool,
-
-    velocity: Vector2
-}
-
-impl Block {
-    pub fn new(c: Color) -> Self {
-        //let rx = unsafe { raylib::ffi::GetRandomValue(0, (WIDTH - 50.0) as i32) } as f32;
-        let rx = 0.0;
-        let ry = 0.0;
-
-
-        Self {
-            rec: Rectangle::new(rx, ry, 50.0, 50.0),
-            color: c,
-            velocity: Vector2::new(0.0, 0.0),
-            fly: false,
-            collided: false
-        }
-    }
-
-    pub fn fall(&mut self, dt: f32) {
-        if !self.collided {
-            if !self.fly {
-                self.velocity.y = if self.rec.y < HEIGHT - self.rec.height {
-                    self.velocity.y + 100.0
-                } 
-    
-                else {
-                    self.rec.y = HEIGHT - self.rec.height;
-                    0.0
-                };
-    
-            }
-    
-            else {
-                self.velocity.y = if self.rec.y > 0.0 {
-                    self.velocity.y - 5.0
-                } 
-    
-                else {
-                    self.rec.y = 0.0;
-                    0.0
-                };        
-            }
-        }
-
-        
-
-        self.rec.y += self.velocity.y * dt;
-        self.rec.x += self.velocity.x * dt;
-    }
-}
+mod utils;
+use utils::{WIDTH, HEIGHT};
 
 fn main() {
     let (mut rl, thread) = raylib::init()
         .size(WIDTH as i32, HEIGHT as i32)
         .title("Aesthetic Castle")
         .build();
+
     rl.set_target_fps(60);
 
+    let count = 300;
 
-    let mut blocks: Vec<Block> = Vec::new();
-    let mut in_used: usize = 0;
+    let mut bricks: Vec<Brick>  = Vec::new();
+    let mut in_used: usize      = 0;
 
-
-    for _i in 0..BLOCKS_COUNT {
-        blocks.push(Block::new(RED_BOX));
-    }
 
     while !rl.window_should_close() {
-        let dt = rl.get_frame_time();
-        let mouse_pos = rl.get_mouse_position();
+        let dt          = rl.get_frame_time();
+        let mouse_pos   = rl.get_mouse_position();
 
-        // --- Update Logics ---
-        /* Insert Blocks */ {
-            if in_used < BLOCKS_COUNT {
-                // --- Red Blocks ---
-                in_used += if rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_RIGHT) {
-                    blocks[in_used].rec.x = mouse_pos.x - blocks[in_used].rec.width / 2.0;
-                    blocks[in_used].rec.y = mouse_pos.y - blocks[in_used].rec.width / 2.0;
-                    1
-                }
-
-                else {
-                    0
-                };
-
-                // --- Blue Blocks ---
-                if rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
-                    blocks[in_used].color = BLUE_BOX;
-                    blocks[in_used].fly   = true;
-
-                    blocks[in_used].rec.x = mouse_pos.x - blocks[in_used].rec.width / 2.0;
-                    blocks[in_used].rec.y = mouse_pos.y - blocks[in_used].rec.width / 2.0;
-
-                    in_used += 1;
-                }
+        if rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
+            if in_used < count {
+                bricks.push(Brick::new());
+                bricks[in_used].drop(mouse_pos);
+                in_used += 1;
             }
         }
 
-        /* Collisions Blocks */ 
-        {
-            for i in 0..in_used {
-                for j in 0..in_used {
-                    if blocks[i].rec.check_collision_recs(blocks[j].rec) {
-                        if i != j {
-                            let overlap = blocks[i].rec.get_collision_rec(blocks[j].rec).unwrap();
-
-                            if overlap.width > overlap.height {
-                                blocks[i].rec.y -= overlap.height;
-                            }
-
-
-                            blocks[i].collided = true;
-                        }
-                    }
-                }
-            }
+        for i in 0..in_used {
+            bricks[i].update(dt);
         }
 
-        // --- Drawing ---
+
         let mut d = rl.begin_drawing(&thread);
-        d.clear_background(BG);
-        {
-            for i in 0..in_used {
-                blocks[i].fall(dt);
+        d.clear_background(Color::RAYWHITE);
 
-                d.draw_rectangle_rec(blocks[i].rec, blocks[i].color);
-            }
-
+        for i in 0..in_used {
+            bricks[i].draw(&mut d);
         }
 
-        d.draw_text(&((blocks.len() - in_used).to_string() + "/" + &BLOCKS_COUNT.to_string()), 0, 0, 30, Color::BLACK);
+        d.draw_text(&((count - in_used).to_string() + "/" + &count.to_string()), 0, 0, 30, Color::BLACK);
     }
 }
