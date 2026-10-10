@@ -16,7 +16,7 @@ pub struct Brick {
 
 impl Brick {
     const FRESH:    Color   = Color::new(0xc6, 0x42, 0x42, 0xff);
-    const BROKEN:   Color   = Color::new(0x82, 0x3f, 0x40, 0xff); 
+    //const BROKEN:   Color   = Color::new(0x82, 0x3f, 0x40, 0xff); 
 
 
     pub fn new() -> Self {
@@ -26,7 +26,7 @@ impl Brick {
 
         Self {
             rec:        rec,
-            collider:   Rectangle::new(0.0, HEIGHT - origin.y, WIDTH, 0.0),
+            collider:   Rectangle::new(0.0, HEIGHT, WIDTH, 0.0),
             color:      Self::FRESH,
 
             rotation:   0.0,
@@ -42,8 +42,14 @@ impl Brick {
     }
 
     pub fn update(&mut self, dt: f32) {
+        // TODO:
+        // - add collider for detecting another rectangles 
+
+        
+
         // Falling logic
         Self::fall(self, dt);
+
 
         self.rec.x += self.velocity.x * dt;
         self.rec.y += self.velocity.y * dt;
@@ -78,17 +84,15 @@ impl Brick {
     }
 
     fn fall(&mut self, dt: f32) {
-        // TODO:
-        // - add collider for detecting another rectangles 
         let gravity = 982.0;
 
         
-        self.velocity.y += if self.rec.y > self.collider.y {
-            if self.velocity.y > 200.0 {
-                self.color = Self::BROKEN;
-            }
+        self.velocity.y += if self.rec.y > self.collider.y - self.origin.y {
+//            if self.velocity.y > 200.0 {
+//                self.color = Self::BROKEN;
+//            }
 
-            self.rec.y = self.collider.y;
+            self.rec.y = self.collider.y - self.origin.y;
             self.velocity.y = -self.velocity.y * self.mass;
 
 

@@ -24,15 +24,30 @@ fn main() {
         let dt          = rl.get_frame_time();
         let mouse_pos   = rl.get_mouse_position();
 
-        if rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
-            if in_used < count {
-                bricks.push(Brick::new());
-                bricks[in_used].drop(mouse_pos);
-                in_used += 1;
-            }
+
+        if in_used < count && rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_RIGHT) {
+            bricks.push(Brick::new());
+            bricks[in_used].drop(mouse_pos);
+            in_used += 1;
         }
 
+
+
+
+
         for i in 0..in_used {
+            for j in (i + 1)..in_used {
+                if bricks[j].rec.check_collision_recs(bricks[i].rec) {
+                    bricks[j].collider = Rectangle::new(
+                        bricks[i].rec.x,
+                        bricks[i].rec.y - bricks[i].rec.height * 0.5,
+                        bricks[i].rec.width,
+                        bricks[i].rec.height,
+                    );
+                }
+            }
+            
+
             bricks[i].update(dt);
         }
 
